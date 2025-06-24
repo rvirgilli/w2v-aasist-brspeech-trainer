@@ -1,0 +1,30 @@
+model:
+  name: w2v_aasist
+  parameters:
+    encoder_layers: 3
+    encoder_dim: 256
+    dropout: 0.5
+    attention_dim: 256
+    output_dim: 256
+    final_dropout: 0.5
+    nb_samp: 64600
+    first_conv: 128
+    filts: [70, [1, 32], [32, 32], [32, 64], [64, 64]]
+    gat_dims: [64, 32]
+    pool_ratios: [0.5, 0.7, 0.5, 0.5]
+    temperatures: [2.0, 2.0, 100.0, 100.0]
+    ssl_pretrained_path: checkpoints/w2v_base/pytorch_model.bin
+    ssl_config_path: checkpoints/w2v_base/config.json
+
+training:
+  batch_size: 4
+  learning_rate: 5e-6
+  weight_decay: 5e-7
+  epochs: 25
+  optimizer: Adam
+  early_stopping: false
+  
+data:
+  root_dir: metadata
+  sample_rate: 16000
+  chunk_length: 4 

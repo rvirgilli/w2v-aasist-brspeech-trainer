@@ -1,0 +1,22 @@
+services:
+  training:
+    build: .
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+      - BATCH_SIZE=${BATCH_SIZE:-4}
+      - EPOCHS=${EPOCHS:-25}
+      - LEARNING_RATE=${LEARNING_RATE:-5e-6}
+      - WEIGHT_DECAY=${WEIGHT_DECAY:-5e-7}
+    volumes:
+      - ${REAL_DATASET_PATH}:/data/real:ro
+      - ${SPOOF_DATASET_PATH}:/data/spoof:ro
+      - ${OUTPUT_PATH:-./outputs}:/app/fine_tuned_models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu] 
