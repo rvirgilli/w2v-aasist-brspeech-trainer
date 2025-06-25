@@ -23,6 +23,7 @@ COPY configs/aasist_w2v_brspeech.yaml configs/
 COPY src/train_brspeech.py .
 
 # Set environment variables
+ENV PYTHONPATH "${PYTHONPATH}:/app"
 ENV PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # Copy source code

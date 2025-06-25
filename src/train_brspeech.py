@@ -171,7 +171,7 @@ def main():
         accuracy = (test_correct / total) * 100
         logger.info(f"Test Set Results - Loss: {avg_loss:.4f}, Accuracy: {accuracy:.2f}%")
         return
-
+    
     # Train the model using the original train_nn function
     logger.info("Starting training...")
     config_save_path, checkpoint_path = train_nn(
