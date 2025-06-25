@@ -5,7 +5,7 @@ echo "🚀 Starting BrSpeech training pipeline..."
 
 # Step 1: Generate metadata
 echo "📊 Generating metadata CSVs..."
-python /app/src/prepare_brspeech_metadata.py
+python /app/prepare_brspeech_metadata.py
 
 # Step 2: Validate generated metadata
 echo "🔎 Validating generated metadata..."
