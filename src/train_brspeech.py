@@ -139,12 +139,12 @@ def main():
         if not args.checkpoint_path:
             raise ValueError("Must provide --checkpoint_path in test-only mode")
         
-        from src.aasist_model.aasist_model import load_model_from_config
+        from src.models import get_model
         
         logger.info(f"Running in test-only mode with checkpoint: {args.checkpoint_path}")
         
         # Load model from config
-        model = load_model_from_config(model_config, device)
+        model = get_model(model_config['model']['name'], model_config['model']['parameters'], device)
         model.load_state_dict(torch.load(args.checkpoint_path, map_location=device))
         model.eval()
         
