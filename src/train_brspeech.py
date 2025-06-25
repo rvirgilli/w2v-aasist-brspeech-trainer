@@ -196,7 +196,11 @@ def main():
             'predicted_label': (np.array(all_scores) > 0.5).astype(int)
         })
         
-        scores_file = f"fine_tuned_models/test_scores_{model_config['model']['name']}.csv"
+        # Create output directory if it doesn't exist
+        output_dir = "fine_tuned_models"
+        os.makedirs(output_dir, exist_ok=True)
+        
+        scores_file = f"{output_dir}/test_scores_{model_config['model']['name']}.csv"
         scores_df.to_csv(scores_file, index=False)
         
         # Simple accuracy calculation
