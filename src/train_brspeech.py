@@ -14,6 +14,8 @@ from pathlib import Path
 import torch
 from torch.utils.data import DataLoader
 import yaml
+import numpy as np
+import pandas as pd
 
 from src.datasets.brspeech_dataset import BrSpeechDataset
 from src.train_models import train_nn
@@ -146,30 +148,70 @@ def main():
         # Load model from config
         model = get_model(model_config['model']['name'], model_config['model']['parameters'], device)
         model.load_state_dict(torch.load(args.checkpoint_path, map_location=device))
+        model.to(device)
         model.eval()
         
-        # Simple test loop
+        # Generate scores file for analysis
         test_loss = 0
-        test_correct = 0
-        total = 0
+        all_scores = []
+        all_labels = []
+        all_paths = []
         criterion = BCEWithLogitsLoss().to(device)
         
         with torch.no_grad():
+            batch_idx = 0
             for batch_x, batch_y in test_loader:
                 batch_x = batch_x.to(device)
                 batch_y = batch_y.to(device).float().unsqueeze(1)
                 
                 output = model(batch_x)
                 loss = criterion(output, batch_y)
-                
                 test_loss += loss.item()
-                preds = (torch.sigmoid(output) > 0.5).float()
-                test_correct += (preds == batch_y).sum().item()
-                total += batch_y.size(0)
+                
+                # Collect scores and labels
+                scores = torch.sigmoid(output).cpu().numpy().flatten()
+                labels = batch_y.cpu().numpy().flatten()
+                
+                # Get file paths for this batch
+                batch_start = batch_idx * test_loader.batch_size
+                batch_end = min(batch_start + len(scores), len(test_loader.dataset))
+                batch_paths = []
+                for i in range(batch_start, batch_end):
+                    if i < len(test_loader.dataset.samples_df):
+                        path = test_loader.dataset.samples_df.iloc[i]['path']
+                        batch_paths.append(path)
+                    else:
+                        batch_paths.append(f"batch_{batch_idx}_sample_{i-batch_start}")
+                
+                all_scores.extend(scores)
+                all_labels.extend(labels)
+                all_paths.extend(batch_paths)
+                batch_idx += 1
 
+        # Save scores to file
+        scores_df = pd.DataFrame({
+            'path': all_paths,
+            'true_label': all_labels,  # 1=real, 0=fake
+            'prediction_score': all_scores,
+            'predicted_label': (np.array(all_scores) > 0.5).astype(int)
+        })
+        
+        scores_file = f"fine_tuned_models/test_scores_{model_config['model']['name']}.csv"
+        scores_df.to_csv(scores_file, index=False)
+        
+        # Simple accuracy calculation
+        accuracy = np.mean(scores_df['predicted_label'] == scores_df['true_label']) * 100
         avg_loss = test_loss / len(test_loader)
-        accuracy = (test_correct / total) * 100
-        logger.info(f"Test Set Results - Loss: {avg_loss:.4f}, Accuracy: {accuracy:.2f}%")
+        
+        n_real = np.sum(scores_df['true_label'] == 1)
+        n_fake = np.sum(scores_df['true_label'] == 0)
+        
+        logger.info(f"Test Set Results:")
+        logger.info(f"  Loss: {avg_loss:.4f}")
+        logger.info(f"  Accuracy (threshold=0.5): {accuracy:.2f}%")
+        logger.info(f"  Dataset: {n_real} real, {n_fake} fake samples")
+        logger.info(f"  Scores saved to: {scores_file}")
+        logger.info(f"  Copy file for analysis: docker cp container_name:/{scores_file} ./")
         return
     
     # Train the model using the original train_nn function
