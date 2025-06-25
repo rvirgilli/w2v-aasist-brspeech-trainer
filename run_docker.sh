@@ -52,17 +52,33 @@ while [[ $# -gt 0 ]]; do
             GPU_ID="${1#*=}"
             shift
             ;;
+        --gpu)
+            GPU_ID="$2"
+            shift 2
+            ;;
         --real-data=*)
             REAL_DATASET_PATH="${1#*=}"
             shift
+            ;;
+        --real-data)
+            REAL_DATASET_PATH="$2"
+            shift 2
             ;;
         --spoof-data=*)
             SPOOF_DATASET_PATH="${1#*=}"
             shift
             ;;
+        --spoof-data)
+            SPOOF_DATASET_PATH="$2"
+            shift 2
+            ;;
         --output=*)
             OUTPUT_PATH="${1#*=}"
             shift
+            ;;
+        --output)
+            OUTPUT_PATH="$2"
+            shift 2
             ;;
         --build)
             DOCKER_ARGS="$DOCKER_ARGS --build"
@@ -75,6 +91,10 @@ while [[ $# -gt 0 ]]; do
         --checkpoint_path=*)
             PYTHON_ARGS="$PYTHON_ARGS --checkpoint_path ${1#*=}"
             shift
+            ;;
+        --checkpoint_path)
+            PYTHON_ARGS="$PYTHON_ARGS --checkpoint_path $2"
+            shift 2
             ;;
         --help|-h)
             show_usage
