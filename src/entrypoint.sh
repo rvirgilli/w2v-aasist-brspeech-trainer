@@ -18,5 +18,5 @@ done
 echo "✅ Metadata validation successful."
 
 # Step 3: Execute the main training command
-echo "🎯 Starting model training..."
-exec "$@" 
+echo "🎯 Starting model training or testing..."
+exec "$@" $PYTHON_ARGS 

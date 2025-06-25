@@ -11,6 +11,7 @@ REAL_DATASET_PATH=""
 SPOOF_DATASET_PATH=""
 OUTPUT_PATH="./outputs"
 DOCKER_ARGS=""
+PYTHON_ARGS=""
 
 # Function to log messages
 log() {
@@ -31,6 +32,8 @@ show_usage() {
     echo "Optional parameters:"
     echo "  --output=<path>         Output directory (default: ./outputs)"
     echo "  --build                 Build Docker image before running"
+    echo "  --test_only             Run only the test phase"
+    echo "  --checkpoint_path=<path> Path to checkpoint"
     echo "  --help                  Show this help message"
     echo ""
     echo "Examples:"
@@ -65,12 +68,20 @@ while [[ $# -gt 0 ]]; do
             DOCKER_ARGS="$DOCKER_ARGS --build"
             shift
             ;;
+        --test_only)
+            PYTHON_ARGS="$PYTHON_ARGS --test_only"
+            shift
+            ;;
+        --checkpoint_path=*)
+            PYTHON_ARGS="$PYTHON_ARGS --checkpoint_path ${1#*=}"
+            shift
+            ;;
         --help|-h)
             show_usage
             exit 0
             ;;
         *)
-            # Pass unknown arguments to docker-compose
+            log "WARN" "Passing unknown argument '$1' to docker-compose"
             DOCKER_ARGS="$DOCKER_ARGS $1"
             shift
             ;;
@@ -111,6 +122,29 @@ fi
 log "INFO" "✅ Spoof data structure looks good."
 # --- End Validation ---
 
+# --- Auto-find latest checkpoint for test-only mode ---
+if [[ "$PYTHON_ARGS" == *"--test_only"* ]] && [[ "$PYTHON_ARGS" != *"--checkpoint_path"* ]]; then
+    log "INFO" "Test-only mode enabled with no checkpoint specified. Finding the latest..."
+    
+    # Find the most recently modified .pth file in the output directory
+    latest_checkpoint_host=$(find "$OUTPUT_PATH" -name "*.pth" -type f -printf '%T@ %p\n' | sort -nr | head -n 1 | cut -d' ' -f2-)
+    
+    if [ -z "$latest_checkpoint_host" ]; then
+        log "ERROR" "Could not find any checkpoint files (*.pth) in '$OUTPUT_PATH'."
+        exit 1
+    fi
+    
+    log "INFO" "Found latest checkpoint on host: $latest_checkpoint_host"
+    
+    # The path inside the container is relative to the mount point.
+    # We strip the host OUTPUT_PATH to get the relative path for the container.
+    checkpoint_container_path="fine_tuned_models/${latest_checkpoint_host#$OUTPUT_PATH/}"
+    
+    PYTHON_ARGS="$PYTHON_ARGS --checkpoint_path=$checkpoint_container_path"
+    log "INFO" "Automatically using checkpoint for container: $checkpoint_container_path"
+fi
+# --- End auto-find ---
+
 # Convert to absolute paths
 REAL_DATASET_PATH=$(realpath "$REAL_DATASET_PATH")
 SPOOF_DATASET_PATH=$(realpath "$SPOOF_DATASET_PATH")
@@ -149,6 +183,7 @@ export REAL_DATASET_PATH
 export SPOOF_DATASET_PATH
 export OUTPUT_PATH
 export GPU_ID
+export PYTHON_ARGS
 
 # Detect which docker compose command is available
 if command -v docker-compose &> /dev/null; then

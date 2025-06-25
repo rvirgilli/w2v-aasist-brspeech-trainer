@@ -8,6 +8,8 @@ services:
       - EPOCHS=${EPOCHS:-25}
       - LEARNING_RATE=${LEARNING_RATE:-5e-6}
       - WEIGHT_DECAY=${WEIGHT_DECAY:-5e-7}
+      - GPU_ID
+      - PYTHON_ARGS
     volumes:
       - ${REAL_DATASET_PATH}:/data/real:ro
       - ${SPOOF_DATASET_PATH}:/data/spoof:ro
