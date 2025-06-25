@@ -1,28 +1,82 @@
 #!/bin/bash
 
 # BrSpeech Training Docker Runner
-# Usage: ./run_docker.sh <real_dataset_path> <spoof_dataset_path> [output_path] [additional_docker_compose_args]
+# Usage: ./run_docker.sh --gpu=<id> --real-data=<path> --spoof-data=<path> [options]
 
 set -e
 
-# Check for required arguments
-if [ $# -lt 2 ]; then
-    echo "❌ Usage: $0 <real_dataset_path> <spoof_dataset_path> [output_path] [additional_args...]"
+# Initialize variables
+GPU_ID=""
+REAL_DATASET_PATH=""
+SPOOF_DATASET_PATH=""
+OUTPUT_PATH="./outputs"
+DOCKER_ARGS=""
+
+# Function to show usage
+show_usage() {
+    echo "❌ Usage: $0 --gpu=<id> --real-data=<path> --spoof-data=<path> [options]"
     echo ""
-    echo "Example:"
-    echo "  $0 /path/to/BRSpeech_CML_TTS_v04012024 /path/to/brspeech_df"
-    echo "  $0 /path/to/BRSpeech_CML_TTS_v04012024 /path/to/brspeech_df /path/to/outputs"
-    echo "  $0 /path/to/BRSpeech_CML_TTS_v04012024 /path/to/brspeech_df ./outputs --build"
+    echo "🚨 GPU ID is REQUIRED to prevent conflicts on shared servers!"
+    echo ""
+    echo "Required parameters:"
+    echo "  --gpu=<id>              GPU ID to use (e.g., --gpu=6)"
+    echo "  --real-data=<path>      Path to real BrSpeech dataset"
+    echo "  --spoof-data=<path>     Path to synthetic speech dataset"
+    echo ""
+    echo "Optional parameters:"
+    echo "  --output=<path>         Output directory (default: ./outputs)"
+    echo "  --build                 Build Docker image before running"
+    echo "  --help                  Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  $0 --gpu=6 --real-data=/path/to/BRSpeech_CML_TTS_v04012024 --spoof-data=/path/to/brspeech_df"
+    echo "  $0 --gpu=6 --real-data=/data/real --spoof-data=/data/spoof --output=/outputs --build"
     echo ""
     echo "Dataset structure expected:"
     echo "  Real dataset: <real_dataset_path>/{train,dev,test}.csv and train/audio/*.flac"
     echo "  Spoof dataset: <spoof_dataset_path>/{f5tts,fish-speech,toucantts,xtts,yourtts}/{train,dev,test}/audio/*.flac"
+}
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --gpu=*)
+            GPU_ID="${1#*=}"
+            shift
+            ;;
+        --real-data=*)
+            REAL_DATASET_PATH="${1#*=}"
+            shift
+            ;;
+        --spoof-data=*)
+            SPOOF_DATASET_PATH="${1#*=}"
+            shift
+            ;;
+        --output=*)
+            OUTPUT_PATH="${1#*=}"
+            shift
+            ;;
+        --build)
+            DOCKER_ARGS="$DOCKER_ARGS --build"
+            shift
+            ;;
+        --help|-h)
+            show_usage
+            exit 0
+            ;;
+        *)
+            # Pass unknown arguments to docker-compose
+            DOCKER_ARGS="$DOCKER_ARGS $1"
+            shift
+            ;;
+    esac
+done
+
+# Check required arguments
+if [ -z "$GPU_ID" ] || [ -z "$REAL_DATASET_PATH" ] || [ -z "$SPOOF_DATASET_PATH" ]; then
+    show_usage
     exit 1
 fi
-
-REAL_DATASET_PATH="$1"
-SPOOF_DATASET_PATH="$2"
-OUTPUT_PATH="${3:-./outputs}"
 
 # Convert to absolute paths
 REAL_DATASET_PATH=$(realpath "$REAL_DATASET_PATH")
@@ -49,14 +103,20 @@ echo "   Spoof dataset: $SPOOF_DATASET_PATH"
 echo "   Output: $OUTPUT_PATH"
 echo ""
 
-# Shift the first 3 arguments so remaining args go to docker-compose
-shift 3
+# Validate GPU ID is numeric
+if ! [[ "$GPU_ID" =~ ^[0-9]+$ ]]; then
+    echo "❌ GPU ID must be a number (0, 1, 2, etc.)"
+    exit 1
+fi
+
+echo "🎮 Using GPU: $GPU_ID"
 
 # Export environment variables for docker-compose
 export REAL_DATASET_PATH
 export SPOOF_DATASET_PATH
 export OUTPUT_PATH
+export GPU_ID
 
 # Run docker compose with any additional arguments
 echo "🐳 Running docker compose..."
-docker compose up "$@" 
+docker compose up $DOCKER_ARGS 
