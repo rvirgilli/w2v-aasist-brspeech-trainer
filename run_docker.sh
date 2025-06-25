@@ -117,6 +117,16 @@ export SPOOF_DATASET_PATH
 export OUTPUT_PATH
 export GPU_ID
 
-# Run docker compose with any additional arguments
+# Detect which docker compose command is available
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+elif docker compose version &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker compose"
+else
+    echo "❌ Neither 'docker-compose' nor 'docker compose' is available"
+    exit 1
+fi
+
+echo "🐳 Using: $DOCKER_COMPOSE_CMD"
 echo "🐳 Running docker compose..."
-docker compose up $DOCKER_ARGS 
+$DOCKER_COMPOSE_CMD up $DOCKER_ARGS 
