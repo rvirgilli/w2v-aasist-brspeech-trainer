@@ -92,6 +92,8 @@ def main():
     parser.add_argument('--lr', type=float, help='Override learning rate')
     parser.add_argument('--weight_decay', type=float, help='Override weight decay')
     parser.add_argument('--device', type=str, default='cuda', help='Device to use for training')
+    parser.add_argument('--test_only', action='store_true', help='Run in test-only mode')
+    parser.add_argument('--checkpoint_path', type=str, help='Path to checkpoint for testing')
     
     args = parser.parse_args()
     
@@ -109,7 +111,7 @@ def main():
             optimizer=Adam,
             batch_size=args.batch_size or model_config['training']['batch_size'],
             num_epochs=args.epochs or model_config['training']['epochs'],
-            early_stopping=False,
+            early_stopping=model_config['training'].get('early_stopping', False),
             early_stopping_patience=5,
             optimizer_parameters={
                 "lr": args.lr or model_config['training']['learning_rate'],
@@ -132,6 +134,44 @@ def main():
     out_model_dir = Path("fine_tuned_models") / f"{model_name}_lr_{lr}_wd_{wd}"
     out_model_dir.mkdir(parents=True, exist_ok=True)
     
+    # If in test_only mode, load model and run test
+    if args.test_only:
+        if not args.checkpoint_path:
+            raise ValueError("Must provide --checkpoint_path in test-only mode")
+        
+        from src.aasist_model.aasist_model import load_model_from_config
+        
+        logger.info(f"Running in test-only mode with checkpoint: {args.checkpoint_path}")
+        
+        # Load model from config
+        model = load_model_from_config(model_config, device)
+        model.load_state_dict(torch.load(args.checkpoint_path, map_location=device))
+        model.eval()
+        
+        # Simple test loop
+        test_loss = 0
+        test_correct = 0
+        total = 0
+        criterion = BCEWithLogitsLoss().to(device)
+        
+        with torch.no_grad():
+            for batch_x, batch_y in test_loader:
+                batch_x = batch_x.to(device)
+                batch_y = batch_y.to(device).float().unsqueeze(1)
+                
+                output = model(batch_x)
+                loss = criterion(output, batch_y)
+                
+                test_loss += loss.item()
+                preds = (torch.sigmoid(output) > 0.5).float()
+                test_correct += (preds == batch_y).sum().item()
+                total += batch_y.size(0)
+
+        avg_loss = test_loss / len(test_loader)
+        accuracy = (test_correct / total) * 100
+        logger.info(f"Test Set Results - Loss: {avg_loss:.4f}, Accuracy: {accuracy:.2f}%")
+        return
+
     # Train the model using the original train_nn function
     logger.info("Starting training...")
     config_save_path, checkpoint_path = train_nn(

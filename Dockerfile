@@ -25,18 +25,14 @@ COPY src/train_brspeech.py .
 # Set environment variables
 ENV PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-# Run training pipeline
-CMD ["bash", "-c", "\
-    echo '🚀 Starting BrSpeech training pipeline...' && \
-    echo '📊 Generating metadata CSVs...' && \
-    python prepare_brspeech_metadata.py && \
-    if [ ! -f 'metadata/train.csv' ]; then echo '❌ Failed to generate metadata files'; exit 1; fi && \
-    echo '✅ Metadata generation complete' && \
-    echo '🎯 Starting model training...' && \
-    python train_brspeech.py \
-        --config configs/aasist_w2v_brspeech.yaml \
-        --batch_size ${BATCH_SIZE:-4} \
-        --epochs ${EPOCHS:-25} \
-        --lr ${LEARNING_RATE:-5e-6} \
-        --weight_decay ${WEIGHT_DECAY:-5e-7} && \
-    echo '🎉 Training complete!'"] 
+# Copy source code
+COPY . /app
+WORKDIR /app
+
+# Make entrypoint script executable and set as entrypoint
+COPY src/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+ENTRYPOINT ["/app/entrypoint.sh"]
+
+# The command to run when the container starts
+CMD ["python", "src/train_brspeech.py", "--config", "configs/aasist_w2v_brspeech.yaml"] 

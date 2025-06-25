@@ -12,6 +12,11 @@ SPOOF_DATASET_PATH=""
 OUTPUT_PATH="./outputs"
 DOCKER_ARGS=""
 
+# Function to log messages
+log() {
+    echo "[$1] $2"
+}
+
 # Function to show usage
 show_usage() {
     echo "❌ Usage: $0 --gpu=<id> --real-data=<path> --spoof-data=<path> [options]"
@@ -77,6 +82,34 @@ if [ -z "$GPU_ID" ] || [ -z "$REAL_DATASET_PATH" ] || [ -z "$SPOOF_DATASET_PATH"
     show_usage
     exit 1
 fi
+
+# --- Path and Structure Validation ---
+log "INFO" "🚀 Validating input paths and structure..."
+
+# Validate real data structure
+for f in train.csv dev.csv test.csv; do
+    if [ ! -f "$REAL_DATASET_PATH/$f" ]; then
+        log "ERROR" "Real data validation failed: Missing file '$f' in $REAL_DATASET_PATH"
+        exit 1
+    fi
+done
+log "INFO" "✅ Real data structure looks good."
+
+# Validate spoof data structure
+found_spoof_model=false
+for model_dir in f5tts fish-speech toucantts xtts yourtts; do
+    if [ -d "$SPOOF_DATASET_PATH/$model_dir" ]; then
+        found_spoof_model=true
+        break
+    fi
+done
+
+if [ "$found_spoof_model" = false ]; then
+    log "ERROR" "Spoof data validation failed: Could not find any expected model subdirectories (e.g., 'xtts', 'yourtts') in $SPOOF_DATASET_PATH"
+    exit 1
+fi
+log "INFO" "✅ Spoof data structure looks good."
+# --- End Validation ---
 
 # Convert to absolute paths
 REAL_DATASET_PATH=$(realpath "$REAL_DATASET_PATH")
