@@ -26,10 +26,6 @@ COPY src/train_brspeech.py .
 ENV PYTHONPATH "${PYTHONPATH}:/app"
 ENV PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-# Copy source code
-COPY . /app
-WORKDIR /app
-
 # Make entrypoint script executable and set as entrypoint
 COPY src/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
