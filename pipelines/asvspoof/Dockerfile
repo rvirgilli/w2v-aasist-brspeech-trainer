@@ -7,20 +7,20 @@ RUN apt-get update && apt-get install -y \
     libsox-fmt-all \
     && rm -rf /var/lib/apt/lists/*
 
-# Clone the original repository
 WORKDIR /app
+
+# Clone the repository
 RUN git clone https://github.com/bartlomiejmarek/are_audio_df_polyglots.git .
 
-# Install Python dependencies from the original repository
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies with increased timeout and retries
+RUN pip install --no-cache-dir --timeout 300 --retries 3 -r requirements.txt
 
 # Set environment variables for consistency
 ENV PYTHONPATH "${PYTHONPATH}:/app"
 ENV PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-# Copy entrypoint and make it executable
+# Copy the entrypoint script
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
-# Default command to ensure container runs, can be overridden
-CMD ["/bin/bash"] 
+ENTRYPOINT ["/app/entrypoint.sh"] 

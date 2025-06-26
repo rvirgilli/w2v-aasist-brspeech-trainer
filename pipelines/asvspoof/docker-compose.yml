@@ -5,8 +5,8 @@ services:
       dockerfile: Dockerfile
     runtime: nvidia
     entrypoint: /app/entrypoint.sh
-    shm_size: 8gb
     environment:
+      - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
       - NVIDIA_VISIBLE_DEVICES=${GPU_ID:-0}
       - PYTHON_ARGS
     volumes:
