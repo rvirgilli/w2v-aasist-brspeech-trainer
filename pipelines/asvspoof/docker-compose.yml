@@ -1,0 +1,21 @@
+services:
+  training-asv:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    runtime: nvidia
+    entrypoint: /app/entrypoint.sh
+    shm_size: 8gb
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=${GPU_ID:-0}
+      - PYTHON_ARGS
+    volumes:
+      - ${ASVSPOOF_DATASET_PATH}:/data/ASVspoof2019_LA:ro
+      - ${OUTPUT_PATH:-./outputs_asvspoof}:/app/outputs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+              device_ids: ['${GPU_ID:-0}'] 
