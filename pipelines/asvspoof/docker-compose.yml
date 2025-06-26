@@ -1,5 +1,6 @@
 services:
   training-asv:
+    shm_size: '8gb'
     build:
       context: .
       dockerfile: Dockerfile

@@ -51,8 +51,12 @@ if [ ! -d "$ASVSPOOF_DATASET_PATH" ]; then
 fi
 
 # Convert to absolute path to be safe
-export ASVSPOOF_DATASET_PATH=$(realpath "$ASVSPOOF_DATASET_PATH")
-export OUTPUT_PATH=$(realpath "$OUTPUT_PATH")
+ASVSPOOF_DATASET_PATH=$(realpath "$ASVSPOOF_DATASET_PATH")
+OUTPUT_PATH=$(realpath "$OUTPUT_PATH")
+
+# Export variables for docker-compose
+export ASVSPOOF_DATASET_PATH
+export OUTPUT_PATH
 export GPU_ID
 
 log "INFO" "GPU ID: $GPU_ID"
@@ -62,19 +66,40 @@ log "INFO" "Output Path: $OUTPUT_PATH"
 # --- Docker Execution ---
 log "INFO" "Detecting Docker Compose command..."
 
+# Check if we need sudo for docker
+NEED_SUDO=""
+if ! docker ps &> /dev/null; then
+    if sudo -E docker ps &> /dev/null; then
+        NEED_SUDO="sudo -E"
+        log "INFO" "Using sudo for Docker commands"
+    else
+        log "ERROR" "Cannot access Docker. Please check Docker installation and permissions."
+        exit 1
+    fi
+fi
+
 # Prioritize docker compose (v2) over docker-compose (v1)
-if command -v 'docker' &> /dev/null && docker compose version &> /dev/null; then
+if command -v 'docker' &> /dev/null && $NEED_SUDO docker compose version &> /dev/null; then
     log "INFO" "Found 'docker compose' (v2)"
-    DOCKER_CMD="docker compose"
+    DOCKER_CMD="$NEED_SUDO docker compose"
 elif command -v 'docker-compose' &> /dev/null; then
     log "INFO" "Found 'docker-compose' (v1)"
-    DOCKER_CMD="docker-compose"
+    DOCKER_CMD="$NEED_SUDO docker-compose"
 else
     log "ERROR" "Could not find 'docker compose' or 'docker-compose'. Please install Docker Compose."
     exit 1
 fi
 
 log "INFO" "Starting Docker..."
-$DOCKER_CMD -f $DOCKER_COMPOSE_FILE up $DOCKER_ARGS --remove-orphans
+if [[ "$DOCKER_ARGS" == "--build" ]]; then
+  log "INFO" "Building image with no cache..."
+  # Build service without cache
+  $DOCKER_CMD -f $DOCKER_COMPOSE_FILE build --no-cache training-asv
+  # Run containers
+  $DOCKER_CMD -f $DOCKER_COMPOSE_FILE up --remove-orphans
+else
+  # Run containers
+  $DOCKER_CMD -f $DOCKER_COMPOSE_FILE up $DOCKER_ARGS --remove-orphans
+fi
 
 log "INFO" "Training finished. Check outputs in $OUTPUT_PATH" 
